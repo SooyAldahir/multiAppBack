@@ -1,0 +1,29 @@
+{
+  "name": "multiapp-back",
+  "version": "1.0.0",
+  "description": "API REST de multiApp (Express + SQL Server)",
+  "main": "src/server.js",
+  "private": true,
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test",
+    "ai:check": "node scripts/check-ai.js",
+    "geo:check": "node scripts/check-geo.js",
+    "push:check": "node scripts/check-push.js",
+    "db:migrate": "node scripts/migrate.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "mssql": "^11.0.1"
+  }
+}

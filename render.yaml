@@ -1,0 +1,60 @@
+# Render Blueprint de MultiApp (API) — repositorio SooyAldahir/multiAppBack.
+# Los valores marcados con sync: false se capturan en el panel de Render (no van en git).
+services:
+  - type: web
+    name: multiapp-api
+    runtime: node
+    plan: free
+    region: virginia          # misma zona que Azure "East US" → menos latencia
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: JWT_SECRET
+        generateValue: true   # Render genera un secreto largo y aleatorio
+      - key: JWT_EXPIRES_IN
+        value: 30d
+      - key: CORS_ORIGIN
+        value: "*"
+      # ---- Azure SQL ----
+      - key: DB_SERVER
+        sync: false           # ej. multiapp-sql.database.windows.net
+      - key: DB_PORT
+        value: "1433"
+      - key: DB_NAME
+        sync: false           # ej. multiapp
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_ENCRYPT
+        value: "true"
+      - key: DB_TRUST_SERVER_CERTIFICATE
+        value: "false"
+      # ---- IA (Groq) ----
+      - key: AI_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: llama-3.3-70b-versatile
+      - key: AI_VISION_MODEL
+        value: qwen/qwen3.8-27b
+      # ---- Fotos de perfil (Cloudinary) ----
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: CLOUDINARY_FOLDER
+        value: multiapp
+      # ---- Push (Firebase): sube el JSON como "Secret File" con este nombre ----
+      - key: FIREBASE_SERVICE_ACCOUNT
+        value: /etc/secrets/firebase-service-account.json
+      # ---- Mapas ----
+      - key: GEO_COUNTRY_CODES
+        value: mx
+      - key: GEO_CONTACT_EMAIL
+        sync: false

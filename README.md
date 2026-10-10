@@ -66,11 +66,13 @@ Todas las rutas (excepto registro, login y health) requieren el header `Authoriz
 |---|---|---|
 | POST | `/api/auth/register` | `{ name, email, password }` → `{ token, user }` |
 | POST | `/api/auth/login` | `{ email, password }` → `{ token, user }` |
+| POST | `/api/auth/google` | `{ idToken }` → `{ token, user, created }` (crea o vincula la cuenta) |
+| POST | `/api/auth/apple` | `{ idToken, authorizationCode?, name? }` → `{ token, user, created }` |
 | GET | `/api/auth/me` | Usuario actual |
 | GET/PATCH | `/api/users/me` | Perfil / `{ name?, phone?, birthDate?, city?, bio? }` |
-| DELETE | `/api/users/me` | `{ password }` elimina la cuenta y todos sus datos |
+| DELETE | `/api/users/me` | `{ password }` o `{ provider, idToken }` elimina la cuenta, su foto y revoca Apple |
 | POST/DELETE | `/api/users/me/avatar` | `{ image (base64) }` sube la foto de perfil a Cloudinary / la quita |
-| PUT | `/api/users/me/password` | `{ currentPassword, newPassword }` |
+| PUT | `/api/users/me/password` | `{ currentPassword, newPassword }` (sin `currentPassword` si la cuenta es de Google/Apple) |
 | PUT | `/api/users/me/email` | `{ email, password }` → `{ token, user }` |
 | GET/PUT | `/api/users/me/notifications` | Preferencias de notificaciones (+ `pushAvailable`) |
 | POST | `/api/devices` | `{ token, platform }` registra el teléfono para push (FCM) |
@@ -146,7 +148,7 @@ Para cambiar de proveedor solo edita `AI_BASE_URL`, `AI_API_KEY` y `AI_MODEL`:
 
 | Proveedor | AI_BASE_URL | AI_MODEL (ejemplo) |
 |---|---|---|
-| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
+| Groq | `https://api.groq.com/openai/v1` | `openai/gpt-oss-120b` |
 | Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-3.5-flash` |
 | OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` |
 | Ollama (local) | `http://localhost:11434/v1` | `llama3.2` (clave: cualquier texto) |
@@ -198,3 +200,18 @@ Se usan datos abiertos de **OpenStreetMap**: no requiere clave ni tarjeta.
 3. Crea el controlador con `createCrudController({ table, schema, orderBy })`.
 4. Regístralo en `src/routes/index.js` con `crudRoutes(...)`.
 # multiAppBack
+
+
+## Páginas públicas (App Store / Google Play)
+
+| Ruta | Para qué |
+|---|---|
+| `/privacidad` | Aviso de privacidad integral (LFPDPPP). URL para App Store Connect y Play Console |
+| `/terminos` | Términos y condiciones |
+| `/eliminar-cuenta` | Pasos y formulario para eliminar la cuenta sin la app (lo exige Google Play) |
+| `/soporte` | Contacto y preguntas frecuentes (Support URL de App Store) |
+| `/.well-known/apple-app-site-association` | Permite guardar la contraseña en el Llavero de iOS |
+| `/.well-known/assetlinks.json` | Lo mismo para Google (requiere `ANDROID_SHA256_FINGERPRINTS`) |
+
+Los datos del responsable salen de `LEGAL_OWNER_NAME`, `LEGAL_CONTACT_EMAIL`, `LEGAL_ADDRESS` y `LEGAL_CITY`.
+Los textos están en `src/web/legal-content.js`; si los cambias, actualiza `LAST_UPDATED`.

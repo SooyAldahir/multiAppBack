@@ -1,16 +1,10 @@
 /* =========================================================
-   multiApp - Esquema de base de datos (SQL Server)
-   Ejecutar en SSMS o Azure Data Studio:
-     sqlcmd -S localhost -U sa -P "<password>" -i database/schema.sql
-   Todas las fechas se guardan en UTC (DATETIME2).
+   MultiApp - Esquema para AZURE SQL
+   Pégalo completo en el Editor de consultas del portal de Azure (base "multiapp") y presiona Ejecutar.
+   - Sin CREATE DATABASE / USE / GO (Azure no los acepta en el editor).
+   - Es seguro correrlo varias veces: solo crea lo que falta.
+   Generado desde database/schema.sql.
    ========================================================= */
-
-IF DB_ID('multiApp') IS NULL
-    CREATE DATABASE multiApp;
-GO
-
-USE multiApp;
-GO
 
 /* ---------- Usuarios ---------- */
 IF OBJECT_ID('dbo.Users', 'U') IS NULL
@@ -25,7 +19,6 @@ CREATE TABLE dbo.Users (
     CONSTRAINT UQ_Users_Email UNIQUE (Email)
 );
 END;
-GO
 
 /* ---------- Agenda ---------- */
 IF OBJECT_ID('dbo.Events', 'U') IS NULL
@@ -47,7 +40,6 @@ CREATE TABLE dbo.Events (
 );
 CREATE INDEX IX_Events_User_Start ON dbo.Events (UserId, StartAt);
 END;
-GO
 
 /* ---------- Notas ---------- */
 IF OBJECT_ID('dbo.Notes', 'U') IS NULL
@@ -65,7 +57,6 @@ CREATE TABLE dbo.Notes (
 );
 CREATE INDEX IX_Notes_User ON dbo.Notes (UserId, IsPinned, UpdatedAt);
 END;
-GO
 
 /* ---------- Cosas por hacer (ToDo) ---------- */
 IF OBJECT_ID('dbo.Todos', 'U') IS NULL
@@ -86,7 +77,6 @@ CREATE TABLE dbo.Todos (
 );
 CREATE INDEX IX_Todos_User ON dbo.Todos (UserId, IsCompleted, DueDate);
 END;
-GO
 
 /* ---------- Control de gastos ---------- */
 IF OBJECT_ID('dbo.Expenses', 'U') IS NULL
@@ -105,7 +95,6 @@ CREATE TABLE dbo.Expenses (
 );
 CREATE INDEX IX_Expenses_User_Date ON dbo.Expenses (UserId, SpentAt);
 END;
-GO
 
 /* ---------- Lista de compras ---------- */
 IF OBJECT_ID('dbo.ShoppingItems', 'U') IS NULL
@@ -122,7 +111,6 @@ CREATE TABLE dbo.ShoppingItems (
 );
 CREATE INDEX IX_Shopping_User ON dbo.ShoppingItems (UserId, IsChecked);
 END;
-GO
 
 /* ---------- Recetario (recetas generadas por IA y guardadas) ---------- */
 IF OBJECT_ID('dbo.Recipes', 'U') IS NULL
@@ -140,7 +128,6 @@ CREATE TABLE dbo.Recipes (
 );
 CREATE INDEX IX_Recipes_User ON dbo.Recipes (UserId, CreatedAt);
 END;
-GO
 
 /* ---------- Lugares guardados (casa, trabajo, iglesia...) ---------- */
 IF OBJECT_ID('dbo.Places', 'U') IS NULL
@@ -162,7 +149,6 @@ CREATE TABLE dbo.Places (
 );
 CREATE INDEX IX_Places_User ON dbo.Places (UserId);
 END;
-GO
 
 /* ---------- Perfil de salud (para metas de calorías y rutinas) ---------- */
 IF OBJECT_ID('dbo.HealthProfiles', 'U') IS NULL
@@ -187,7 +173,6 @@ CREATE TABLE dbo.HealthProfiles (
     CONSTRAINT CK_Health_Goal CHECK (Goal IN ('lose', 'maintain', 'gain'))
 );
 END;
-GO
 
 /* ---------- Entrenamientos realizados ---------- */
 IF OBJECT_ID('dbo.WorkoutSessions', 'U') IS NULL
@@ -208,7 +193,6 @@ CREATE TABLE dbo.WorkoutSessions (
 );
 CREATE INDEX IX_Workout_User_Date ON dbo.WorkoutSessions (UserId, PerformedAt);
 END;
-GO
 
 /* ---------- Registro de comidas (calorías) ---------- */
 IF OBJECT_ID('dbo.FoodLogs', 'U') IS NULL
@@ -236,7 +220,6 @@ CREATE TABLE dbo.FoodLogs (
 );
 CREATE INDEX IX_Food_User_Date ON dbo.FoodLogs (UserId, EatenAt);
 END;
-GO
 
 /* ---------- Perfil completo y notificaciones ---------- */
 IF COL_LENGTH('dbo.Users', 'AvatarUrl') IS NULL ALTER TABLE dbo.Users ADD AvatarUrl NVARCHAR(500) NULL;
@@ -245,7 +228,6 @@ IF COL_LENGTH('dbo.Users', 'BirthDate') IS NULL ALTER TABLE dbo.Users ADD BirthD
 IF COL_LENGTH('dbo.Users', 'City') IS NULL ALTER TABLE dbo.Users ADD City NVARCHAR(100) NULL;
 IF COL_LENGTH('dbo.Users', 'Bio') IS NULL ALTER TABLE dbo.Users ADD Bio NVARCHAR(300) NULL;
 IF COL_LENGTH('dbo.Users', 'NotificationPrefs') IS NULL ALTER TABLE dbo.Users ADD NotificationPrefs NVARCHAR(MAX) NULL;
-GO
 
 /* Tokens de Firebase Cloud Messaging de cada teléfono (para notificaciones push) */
 IF OBJECT_ID('dbo.DeviceTokens', 'U') IS NULL
@@ -262,7 +244,6 @@ CREATE TABLE dbo.DeviceTokens (
 );
 CREATE INDEX IX_Device_User ON dbo.DeviceTokens (UserId);
 END;
-GO
 
 /* ==================== Presupuesto y apartados (migración 005) ==================== */
 /* Configuración del presupuesto de cada usuario */
@@ -279,7 +260,6 @@ CREATE TABLE dbo.BudgetSettings (
     CONSTRAINT CK_BudgetSettings_Period CHECK (Period IN ('monthly', 'biweekly', 'weekly'))
 );
 END;
-GO
 
 /* Categorías (las mismas para Gastos y Presupuesto). Expenses.Category guarda el nombre. */
 IF OBJECT_ID('dbo.BudgetCategories', 'U') IS NULL
@@ -297,7 +277,6 @@ CREATE TABLE dbo.BudgetCategories (
     CONSTRAINT UQ_BudgetCategories_Name UNIQUE (UserId, Name)
 );
 END;
-GO
 
 /* Periodos de presupuesto (fechas locales del usuario) */
 IF OBJECT_ID('dbo.BudgetPeriods', 'U') IS NULL
@@ -318,7 +297,6 @@ CREATE TABLE dbo.BudgetPeriods (
     CONSTRAINT CK_BudgetPeriods_Income CHECK (Income IS NULL OR Income >= 0)
 );
 END;
-GO
 
 /* Límite de cada categoría en un periodo (CategoryId sin FK para evitar rutas de borrado en cascada múltiples) */
 IF OBJECT_ID('dbo.BudgetLimits', 'U') IS NULL
@@ -332,7 +310,6 @@ CREATE TABLE dbo.BudgetLimits (
     CONSTRAINT CK_BudgetLimits_Amount CHECK (Amount >= 0)
 );
 END;
-GO
 
 /* Apartados: Ahorro, Emergencias, Medicamentos… (el dinero puede estar en cualquier lado) */
 IF OBJECT_ID('dbo.SavingsFunds', 'U') IS NULL
@@ -357,7 +334,6 @@ CREATE TABLE dbo.SavingsFunds (
 );
 CREATE INDEX IX_SavingsFunds_User ON dbo.SavingsFunds (UserId);
 END;
-GO
 
 /* Depósitos (+) y retiros (−) de cada apartado */
 IF OBJECT_ID('dbo.FundMovements', 'U') IS NULL
@@ -379,25 +355,5 @@ CREATE TABLE dbo.FundMovements (
 CREATE INDEX IX_FundMovements_Fund ON dbo.FundMovements (FundId, MovedAt);
 CREATE INDEX IX_FundMovements_UserPeriod ON dbo.FundMovements (UserId, PeriodId);
 END;
-GO
 
-/* ==================== Google / Apple (migración 006) ==================== */
-
-IF EXISTS (SELECT 1 FROM sys.columns
-           WHERE object_id = OBJECT_ID('dbo.Users') AND name = 'PasswordHash' AND is_nullable = 0)
-    ALTER TABLE dbo.Users ALTER COLUMN PasswordHash NVARCHAR(255) NULL;
-
-IF OBJECT_ID('dbo.UserIdentities', 'U') IS NULL
-CREATE TABLE dbo.UserIdentities (
-    Id            INT IDENTITY(1,1) PRIMARY KEY,
-    UserId        INT            NOT NULL,
-    Provider      NVARCHAR(20)   NOT NULL,
-    Subject       NVARCHAR(255)  NOT NULL,
-    Email         NVARCHAR(255)  NULL,
-    RefreshToken  NVARCHAR(1000) NULL,   -- solo Apple: para revocar al eliminar la cuenta
-    CreatedAt     DATETIME2      NOT NULL CONSTRAINT DF_UserIdentities_CreatedAt DEFAULT SYSUTCDATETIME(),
-    CONSTRAINT FK_UserIdentities_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(Id) ON DELETE CASCADE,
-    CONSTRAINT UQ_UserIdentities_Provider_Subject UNIQUE (Provider, Subject),
-    CONSTRAINT CK_UserIdentities_Provider CHECK (Provider IN ('google', 'apple'))
-);
-GO
+SELECT name AS tabla FROM sys.tables ORDER BY name;

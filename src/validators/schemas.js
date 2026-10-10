@@ -125,7 +125,8 @@ const profileUpdate = {
 };
 
 const passwordChange = {
-  currentPassword: { type: 'string', required: true },
+  // Opcional solo para cuentas creadas con Google/Apple que aún no tienen contraseña.
+  currentPassword: { type: 'string', nullable: true },
   newPassword: { type: 'string', required: true, min: 8, max: 100 },
 };
 
@@ -136,6 +137,19 @@ const emailChange = {
 
 const passwordConfirm = {
   password: { type: 'string', required: true },
+};
+
+/** Eliminar cuenta: con contraseña, o volviendo a entrar con Google/Apple. */
+const accountDelete = {
+  password: { type: 'string', nullable: true },
+  provider: { type: 'string', nullable: true, values: ['google', 'apple'] },
+  idToken: { type: 'string', nullable: true, max: 5000 },
+};
+
+const socialLogin = {
+  idToken: { type: 'string', required: true, max: 5000 },
+  authorizationCode: { type: 'string', nullable: true, max: 2000 },
+  name: { type: 'string', nullable: true, max: 100 },
 };
 
 const avatarUpload = {
@@ -201,6 +215,8 @@ module.exports = {
   passwordChange,
   emailChange,
   passwordConfirm,
+  accountDelete,
+  socialLogin,
   avatarUpload,
   deviceRegister,
   register,

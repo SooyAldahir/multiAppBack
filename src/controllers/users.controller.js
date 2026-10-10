@@ -9,8 +9,14 @@ const schemas = require('../validators/schemas');
 const cloudinary = require('../services/cloudinary.service');
 const notifications = require('../services/notifications.service');
 const fcm = require('../services/fcm.service');
+const social = require('../services/social-auth.service');
+const account = require('../services/account.service');
 
-const USER_COLUMNS = 'Id, Name, Email, AvatarUrl, Phone, BirthDate, City, Bio, CreatedAt';
+const USER_COLUMNS =
+  'Id, Name, Email, AvatarUrl, Phone, BirthDate, City, Bio, CreatedAt, CASE WHEN PasswordHash IS NULL THEN 0 ELSE 1 END AS HasPassword';
+
+/** Una re-autenticación con Google/Apple vale para borrar la cuenta solo si es reciente. */
+const REAUTH_MAX_AGE_S = 10 * 60;
 
 /** Usuario tal como lo ve la app (nunca incluye la contraseña). */
 function publicUser(row) {
@@ -24,18 +30,25 @@ function publicUser(row) {
     city: row.City ?? null,
     bio: row.Bio ?? null,
     createdAt: row.CreatedAt,
+    // Las cuentas creadas con Google/Apple no tienen contraseña.
+    hasPassword: row.HasPassword !== undefined ? Boolean(row.HasPassword) : row.PasswordHash !== null,
+    providers: row.providers ?? [],
   };
 }
 
 async function loadUser(id) {
   const r = await query(`SELECT ${USER_COLUMNS} FROM dbo.Users WHERE Id = @id`, { id });
   if (!r.recordset[0]) throw new HttpError(404, 'Usuario no encontrado');
-  return publicUser(r.recordset[0]);
+  const ids = await query('SELECT Provider FROM dbo.UserIdentities WHERE UserId = @id', { id });
+  return publicUser({ ...r.recordset[0], providers: ids.recordset.map((x) => x.Provider) });
 }
 
 async function checkPassword(userId, password) {
   const r = await query('SELECT PasswordHash FROM dbo.Users WHERE Id = @id', { id: userId });
-  const ok = r.recordset[0] && (await bcrypt.compare(password, r.recordset[0].PasswordHash));
+  if (r.recordset[0] && !r.recordset[0].PasswordHash) {
+    throw new HttpError(403, 'Tu cuenta no tiene contraseña porque entras con Google o Apple');
+  }
+  const ok = r.recordset[0] && password && (await bcrypt.compare(password, r.recordset[0].PasswordHash));
   if (!ok) throw new HttpError(403, 'La contraseña actual no es correcta');
 }
 
@@ -85,6 +98,7 @@ const uploadAvatar = asyncHandler(async (req, res) => {
 
 // DELETE /api/users/me/avatar
 const deleteAvatar = asyncHandler(async (req, res) => {
+  await cloudinary.destroyImage(cloudinary.avatarPublicId(req.user.id));
   await query('UPDATE dbo.Users SET AvatarUrl = NULL, UpdatedAt = SYSUTCDATETIME() WHERE Id = @id', { id: req.user.id });
   res.json(await loadUser(req.user.id));
 });
@@ -92,8 +106,13 @@ const deleteAvatar = asyncHandler(async (req, res) => {
 // PUT /api/users/me/password { currentPassword, newPassword }
 const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = validate(schemas.passwordChange, req.body);
-  await checkPassword(req.user.id, currentPassword);
-  if (currentPassword === newPassword) throw new HttpError(400, 'La nueva contraseña debe ser diferente');
+  const r = await query('SELECT PasswordHash FROM dbo.Users WHERE Id = @id', { id: req.user.id });
+  if (!r.recordset[0]) throw new HttpError(404, 'Usuario no encontrado');
+  // Cuentas de Google/Apple sin contraseña: pueden crear una sin la "actual".
+  if (r.recordset[0].PasswordHash) {
+    await checkPassword(req.user.id, currentPassword);
+    if (currentPassword === newPassword) throw new HttpError(400, 'La nueva contraseña debe ser diferente');
+  }
   const hash = await bcrypt.hash(newPassword, 10);
   await query('UPDATE dbo.Users SET PasswordHash = @hash, UpdatedAt = SYSUTCDATETIME() WHERE Id = @id', {
     id: req.user.id,
@@ -116,12 +135,24 @@ const changeEmail = asyncHandler(async (req, res) => {
   res.json({ token: signToken(user), user });
 });
 
-// DELETE /api/users/me { password }  -> borra la cuenta y todos sus datos
+// DELETE /api/users/me { password } | { provider, idToken }  -> borra la cuenta y todos sus datos
 const deleteAccount = asyncHandler(async (req, res) => {
-  const { password } = validate(schemas.passwordConfirm, req.body || {});
-  await checkPassword(req.user.id, password);
-  // Todas las tablas tienen ON DELETE CASCADE hacia Users.
-  await query('DELETE FROM dbo.Users WHERE Id = @id', { id: req.user.id });
+  const body = validate(schemas.accountDelete, req.body || {});
+  if (body.password) {
+    await checkPassword(req.user.id, body.password);
+  } else if (body.provider && body.idToken) {
+    // Cuentas sin contraseña: se confirma volviendo a entrar con Google/Apple.
+    const claims = await social.verifyIdToken(body.provider, body.idToken);
+    const linked = await query(
+      'SELECT 1 FROM dbo.UserIdentities WHERE UserId = @id AND Provider = @provider AND Subject = @subject',
+      { id: req.user.id, provider: body.provider, subject: claims.sub },
+    );
+    if (!linked.recordset.length) throw new HttpError(403, 'Esa cuenta no es la que usas en MultiApp');
+    if (Date.now() / 1000 - claims.iat > REAUTH_MAX_AGE_S) throw new HttpError(403, 'Vuelve a confirmar tu identidad');
+  } else {
+    throw new HttpError(400, 'Confirma con tu contraseña o volviendo a entrar con Google/Apple');
+  }
+  await account.deleteAccount(req.user.id);
   res.status(204).end();
 });
 
@@ -171,6 +202,8 @@ const testPush = asyncHandler(async (req, res) => {
 
 module.exports = {
   publicUser,
+  loadUser,
+  checkPassword,
   me,
   updateMe,
   uploadAvatar,

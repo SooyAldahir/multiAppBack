@@ -67,4 +67,37 @@ function avatarUrl(secureUrl, size = 256) {
   return secureUrl.replace('/upload/', `/upload/c_fill,g_face,w_${size},h_${size},q_auto,f_auto/`);
 }
 
-module.exports = { uploadImage, isConfigured, sign, avatarUrl };
+/**
+ * Borra una imagen de Cloudinary (p. ej. la foto de perfil al eliminar la cuenta).
+ * Devuelve true si se borró o ya no existía. Nunca lanza: un fallo aquí no debe impedir borrar la cuenta.
+ */
+async function destroyImage(publicId, { fetchImpl = fetch } = {}) {
+  if (!isConfigured() || !publicId) return false;
+  const c = env.cloudinary;
+  const params = { public_id: publicId, invalidate: 'true', timestamp: Math.floor(Date.now() / 1000) };
+  const form = new URLSearchParams({
+    ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
+    api_key: c.apiKey,
+    signature: sign(params, c.apiSecret),
+  });
+  try {
+    const res = await fetchImpl(`https://api.cloudinary.com/v1_1/${c.cloudName}/image/destroy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+      signal: AbortSignal.timeout(15000),
+    });
+    const data = await res.json().catch(() => ({}));
+    return res.ok && (data.result === 'ok' || data.result === 'not found');
+  } catch (err) {
+    console.warn('Cloudinary: no se pudo borrar la imagen:', err.message);
+    return false;
+  }
+}
+
+/** public_id de la foto de perfil de un usuario. */
+function avatarPublicId(userId) {
+  return `${env.cloudinary.folder}/avatars/user_${userId}`;
+}
+
+module.exports = { uploadImage, destroyImage, avatarPublicId, isConfigured, sign, avatarUrl };

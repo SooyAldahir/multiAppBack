@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const { env } = require('./config/env');
 const routes = require('./routes');
+const web = require('./web/router');
 const { notFound, errorHandler } = require('./middleware/errors');
 
 const app = express();
@@ -23,6 +24,8 @@ app.use(express.json({ limit: '200kb' }));
 if (env.nodeEnv !== 'test') app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 
 app.use('/api', routes);
+// Aviso de privacidad, términos, eliminación de cuenta y soporte (páginas públicas).
+app.use(web);
 
 app.use(notFound);
 app.use(errorHandler);

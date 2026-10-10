@@ -42,7 +42,7 @@ services:
       - key: AI_API_KEY
         sync: false
       - key: AI_MODEL
-        value: llama-3.3-70b-versatile
+        value: openai/gpt-oss-120b
       - key: AI_VISION_MODEL
         value: qwen/qwen3.8-27b
       # ---- Fotos de perfil (Cloudinary) ----
@@ -58,3 +58,26 @@ services:
         value: mx
       - key: GEO_CONTACT_EMAIL
         sync: false
+      # ---- Crea las tablas nuevas al arrancar (idempotente) ----
+      - key: AUTO_MIGRATE
+        value: "true"
+      # ---- Iniciar sesión con Google / Apple ----
+      - key: GOOGLE_CLIENT_IDS
+        sync: false           # "Web client ID" de Google (termina en .apps.googleusercontent.com)
+      - key: APPLE_CLIENT_IDS
+        value: com.aldahirballina.multiapp
+      - key: APPLE_TEAM_ID
+        value: BR8MSB248A
+      - key: APPLE_KEY_ID
+        sync: false           # ID de la llave "Sign in with Apple" (.p8)
+      - key: APPLE_PRIVATE_KEY_PATH
+        value: /etc/secrets/apple-signin-key.p8
+      # ---- Páginas legales (/privacidad, /terminos, /eliminar-cuenta, /soporte) ----
+      - key: LEGAL_CONTACT_EMAIL
+        sync: false
+      - key: LEGAL_ADDRESS
+        sync: false
+      - key: LEGAL_CITY
+        sync: false
+      - key: ANDROID_SHA256_FINGERPRINTS
+        sync: false           # huella SHA-256 del certificado de firma (Play Console → Integridad de la app)

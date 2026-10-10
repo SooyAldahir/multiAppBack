@@ -25,7 +25,8 @@ function errorHandler(err, _req, res, _next) {
   const status = err instanceof HttpError ? err.status : 500;
   if (status >= 500) console.error(err);
 
-  const body = { error: status >= 500 ? 'Error interno del servidor' : err.message };
+  // Los HttpError llevan mensajes pensados para el usuario (p. ej. "La IA tardó demasiado"): se muestran siempre.
+  const body = { error: status >= 500 && !(err instanceof HttpError) ? 'Error interno del servidor' : err.message };
   if (err.details) body.details = err.details;
   if (status >= 500 && env.nodeEnv !== 'production') body.debug = err.message;
   return res.status(status).json(body);

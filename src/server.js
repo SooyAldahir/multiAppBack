@@ -8,6 +8,10 @@ async function start() {
   try {
     await getPool();
     console.log(`✔ Conectado a SQL Server (${env.db.server}/${env.db.database})`);
+    if (env.autoMigrate) {
+      const n = await require('../scripts/migrate').migrate({ log: () => {} });
+      console.log(`✔ Tablas al día (${n})`);
+    }
   } catch (err) {
     console.error('✖ No se pudo conectar a SQL Server:', err.message);
     console.error('  El servidor arrancará igual y reintentará en cada petición.');

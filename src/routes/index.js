@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const { requireAuth } = require('../middleware/auth');
+const { rateLimit } = require('../middleware/rate-limit');
 const auth = require('../controllers/auth.controller');
 const dashboard = require('../controllers/dashboard.controller');
 const recipes = require('../controllers/recipes.controller');
@@ -26,8 +27,11 @@ const router = Router();
 router.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
 // Públicas
-router.post('/auth/register', auth.register);
-router.post('/auth/login', auth.login);
+const authLimit = rateLimit({ max: 30, message: 'Demasiados intentos de inicio de sesión. Espera unos minutos.' });
+router.post('/auth/register', authLimit, auth.register);
+router.post('/auth/login', authLimit, auth.login);
+router.post('/auth/google', authLimit, auth.google);
+router.post('/auth/apple', authLimit, auth.apple);
 
 // Protegidas
 router.use(requireAuth);
@@ -36,7 +40,7 @@ router.get('/auth/me', auth.me);
 // Perfil completo
 router.get('/users/me', users.me);
 router.patch('/users/me', users.updateMe);
-router.delete('/users/me', users.deleteAccount);
+router.delete('/users/me', rateLimit({ max: 10 }), users.deleteAccount);
 router.post('/users/me/avatar', users.uploadAvatar);
 router.delete('/users/me/avatar', users.deleteAvatar);
 router.put('/users/me/password', users.changePassword);

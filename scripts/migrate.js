@@ -20,22 +20,28 @@ function batches(sqlText) {
     .filter((b) => !/^\s*(\/\*[\s\S]*?\*\/\s*)*USE\s+\w+\s*;?\s*$/i.test(b));
 }
 
-async function main() {
+/** Ejecuta schema.sql (idempotente). Devuelve el número de tablas. */
+async function migrate({ log = console.log } = {}) {
   const file = path.join(__dirname, '..', 'database', 'schema.sql');
   const list = batches(fs.readFileSync(file, 'utf8'));
-  console.log(`▶ Conectando a ${env.db.server}/${env.db.database}…`);
   const pool = await getPool();
-  console.log(`✔ Conectado. Ejecutando ${list.length} bloques de database/schema.sql`);
+  log(`▶ Ejecutando ${list.length} bloques de database/schema.sql en ${env.db.server}/${env.db.database}`);
   for (const [i, batch] of list.entries()) {
     try {
       await pool.request().batch(batch);
     } catch (err) {
-      console.error(`✖ Falló el bloque ${i + 1}:\n${batch.slice(0, 300)}…\n`);
+      err.message = `Falló el bloque ${i + 1} (${batch.slice(0, 120).replace(/\s+/g, ' ')}…): ${err.message}`;
       throw err;
     }
   }
   const tables = await pool.request().query("SELECT COUNT(*) AS N FROM sys.tables WHERE schema_id = SCHEMA_ID('dbo')");
-  console.log(`✔ Listo: la base tiene ${tables.recordset[0].N} tablas.`);
+  return tables.recordset[0].N;
+}
+
+async function main() {
+  console.log(`▶ Conectando a ${env.db.server}/${env.db.database}…`);
+  const n = await migrate();
+  console.log(`✔ Listo: la base tiene ${n} tablas.`);
 }
 
 if (require.main === module) {
@@ -50,4 +56,4 @@ if (require.main === module) {
     .finally(() => closePool().catch(() => {}));
 }
 
-module.exports = { batches };
+module.exports = { batches, migrate };
